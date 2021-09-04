@@ -1,0 +1,60 @@
+package repository
+
+import (
+	"context"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"jafam_tpa/db/dbHelper"
+	"{{IMPORT}}/entity"
+	"log"
+)
+
+type {{DEPOSITOR}} interface {
+	Get(ctx context.Context, id *primitive.ObjectID) (entity.{{ENTITY}}, error)
+	Query(ctx context.Context, query *bson.D, opts ...*options.FindOptions) ([]entity.{{ENTITY}}, error)
+	QueryOne(ctx context.Context, query *bson.D) (entity.{{ENTITY}}, error)
+	Save(ctx context.Context, m *entity.{{ENTITY}})  error
+	Delete(ctx context.Context, m *entity.{{ENTITY}}) error
+}
+
+func New{{DEPOSITOR}}(logger *log.Logger) {{DEPOSITOR}} {
+	return &{{REPOSITOR}}{logger: logger}
+}
+
+type {{REPOSITOR}} struct {
+	logger *log.Logger
+}
+
+func (r {{REPOSITOR}}) Get(ctx context.Context, id *primitive.ObjectID) (entity.{{ENTITY}}, error) {
+	return r.QueryOne(ctx, &bson.D{{"_id", id}})
+}
+
+func (r {{REPOSITOR}}) Query(ctx context.Context, query *bson.D, opts ...*options.FindOptions) ([]entity.{{ENTITY}}, error) {
+	res := dbHelper.FindAllGo(ctx, entity.{{COLLECTION_CONST}}, query, opts...)
+	l := make([]entity.{{ENTITY}},0)
+	for decoder := range res {
+		m := entity.New{{ENTITY}}()
+		err := decoder(m)
+		if err != nil {
+			return nil, err
+		}
+		l = append(l, *m)
+	}
+	return l, nil
+}
+
+func (r {{REPOSITOR}}) QueryOne(ctx context.Context, query *bson.D) (entity.{{ENTITY}}, error) {
+	m := entity.New{{ENTITY}}()
+	err := dbHelper.FindOneSync(ctx, query, m)
+	return *m, err
+}
+
+func (r {{REPOSITOR}}) Save(ctx context.Context, m *entity.{{ENTITY}}) error {
+	return dbHelper.SaveSync(ctx, m)
+}
+
+func (r {{REPOSITOR}}) Delete(ctx context.Context, m *entity.{{ENTITY}}) error {
+	res := dbHelper.DeleteGo(ctx, m)
+	return <- res
+}

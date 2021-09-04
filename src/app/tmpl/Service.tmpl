@@ -1,0 +1,101 @@
+package service
+
+import (
+	"context"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"{{IMPORT}}/entity"
+	"{{IMPORT}}/repository"
+	"log"
+)
+
+type {{SERVICE_INTERFACE}} interface {
+	Get(ctx context.Context, id string) (entity.{{ENTITY}}, error)
+	Query(ctx context.Context, query *bson.D, opts ...*options.FindOptions) ([]entity.{{ENTITY}}, error)
+	QueryOne(ctx context.Context, query *bson.D) (entity.{{ENTITY}}, error)
+	Create(ctx context.Context, f Create{{ENTITY}}) (entity.{{ENTITY}}, error)
+	Update(ctx context.Context, id string, f Update{{ENTITY}}) (entity.{{ENTITY}}, error)
+	Delete(ctx context.Context, id string) error
+}
+
+type Create{{ENTITY}} struct{
+	{{CREATE_FIELDS}}
+}
+type Update{{ENTITY}} struct{
+	{{UPDATE_FIELDS}}
+}
+
+func (c Create{{ENTITY}}) Validate() error {
+    {{VALIDATION_RULES}}
+}
+
+func (c Update{{ENTITY}}) Validate() error {
+	{{VALIDATION_RULES}}
+}
+
+
+func New{{SERVICE_INTERFACE}}(repository repository.{{DEPOSITOR}}, logger *log.Logger) {{SERVICE_INTERFACE}} {
+	return &{{SERVICE_STRUCT}}{repository: repository, logger: logger}
+}
+
+type {{SERVICE_STRUCT}} struct {
+	repository repository.{{DEPOSITOR}}
+	logger     *log.Logger
+}
+
+func (s {{SERVICE_STRUCT}}) Get(ctx context.Context, id string) (entity.{{ENTITY}}, error) {
+	hex, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return entity.{{ENTITY}}{}, err
+	}
+	return s.repository.Get(ctx, &hex)
+}
+
+func (s {{SERVICE_STRUCT}}) Query(ctx context.Context, query *bson.D, opts ...*options.FindOptions) ([]entity.{{ENTITY}}, error) {
+	return s.repository.Query(ctx, query, opts...)
+}
+
+func (s {{SERVICE_STRUCT}}) QueryOne(ctx context.Context, query *bson.D) (entity.{{ENTITY}}, error) {
+	return s.repository.QueryOne(ctx, query)
+}
+
+func (s {{SERVICE_STRUCT}}) Create(ctx context.Context, f Create{{ENTITY}}) (entity.{{ENTITY}}, error) {
+	if err := f.Validate(); err != nil {
+		return entity.{{ENTITY}}{}, err
+	}
+	m := entity.New{{ENTITY}}()
+	{{X=Y}}
+	err := s.repository.Save(ctx, m)
+	return *m, err
+}
+
+func (s {{SERVICE_STRUCT}}) Update(ctx context.Context, id string, f Update{{ENTITY}}) (entity.{{ENTITY}}, error) {
+	hex, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return entity.{{ENTITY}}{}, err
+	}
+	if err := f.Validate(); err != nil {
+		return entity.{{ENTITY}}{}, err
+	}
+	m, err := s.repository.Get(ctx, &hex)
+	if err != nil {
+		return entity.{{ENTITY}}{}, err
+	}
+	{{X=Y}}
+	err = s.repository.Save(ctx, &m)
+	return m, err
+}
+
+func (s {{SERVICE_STRUCT}}) Delete(ctx context.Context, id string) error {
+	hex, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	m, err := s.repository.Get(ctx, &hex)
+	if err != nil {
+		return err
+	}
+	return s.repository.Delete(ctx, &m)
+}

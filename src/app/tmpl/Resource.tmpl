@@ -1,0 +1,112 @@
+package resource
+
+import (
+	routing "github.com/mmta41/fasthttp-routing"
+	"go.mongodb.org/mongo-driver/bson"
+	conf "jafam_tpa/config"
+	"jafam_tpa/db/dbHelper"
+	"{{IMPORT}}/repository"
+    "{{IMPORT}}/service"
+	"jafam_tpa/tools"
+	"log"
+	"net/http"
+	"strings"
+)
+
+func RouteDecision{{ENTITY}}(router *routing.RouteGroup, logger *log.Logger) {
+	serv := service.New{{SERVICE_INTERFACE}}(repository.New{{DEPOSITOR}}(logger), logger)
+	res := {{RESOURCE}}{serv, logger}
+	router.Get("", res.actionIndex)
+	router.Post("", res.actionCreate)
+	router.Get(`/<id:\w{24}>`, res.actionView)
+	router.Patch(`/<id:\w{24}>`, res.actionUpdate)
+	router.Delete(`/<id:\w{24}>`, res.actionDelete)
+}
+
+type {{RESOURCE}} struct {
+	service service.{{SERVICE_INTERFACE}}
+	logger *log.Logger
+}
+
+func (r {{RESOURCE}}) actionIndex(c *routing.Context) error {
+	search := strings.TrimSpace(string(c.QueryArgs().Peek("search")))
+	q := bson.D{}
+
+	parts := strings.Split(search, " ")
+	for _, part := range parts {
+		s := strings.TrimSpace(part)
+		if len(s) > 0 {
+			q = append(q, bson.E{Key: "{{SEARCH_FIELD}}", Value: s})
+		}
+	}
+	page := dbHelper.NewPagination(c)
+	page.DefaultOrder("_id", 1)
+	page.SetLimit(50)
+	query, err := r.service.Query(c, &q, page.CreateFindOption())
+	if err != nil {
+		return err
+	}
+	page.Send(query)
+	return nil
+}
+
+func (r {{RESOURCE}}) actionView(c *routing.Context) error {
+	id, err := r.getID(c)
+	if err != nil {
+		return err
+	}
+	m, err := r.service.Get(c, id)
+	if err != nil {
+		return err
+	}
+	tools.Sender(c, conf.OkCode, http.StatusOK, nil, m)
+	return nil
+}
+
+func (r {{RESOURCE}}) actionCreate(c *routing.Context) error {
+	f := service.Create{{ENTITY}}{}
+	err := tools.LoadForm(&f, c.PostBody())
+	if err != nil {
+		return routing.NewHTTPError(http.StatusBadRequest)
+	}
+	m, err := r.service.Create(c, f)
+	if err != nil {
+		return err
+	}
+	tools.Sender(c, conf.OkCode, http.StatusOK, nil, m)
+	return nil
+}
+
+func (r {{RESOURCE}}) actionUpdate(c *routing.Context) error {
+	id, err := r.getID(c)
+	if err != nil {
+		return err
+	}
+	f := service.Update{{ENTITY}}{}
+	err = tools.LoadForm(&f, c.PostBody())
+	if err != nil {
+		return routing.NewHTTPError(http.StatusBadRequest)
+	}
+	m, err := r.service.Update(c, id, f)
+	if err != nil {
+		return err
+	}
+	tools.Sender(c, conf.OkCode, http.StatusOK, nil, m)
+	return nil
+}
+
+func (r {{RESOURCE}}) actionDelete(c *routing.Context) error {
+	id, err := r.getID(c)
+	if err != nil {
+		return err
+	}
+	return r.service.Delete(c, id)
+}
+
+func (r {{RESOURCE}}) getID(c *routing.Context) (string, error) {
+	id := strings.TrimSpace(c.Param("id"))
+	if len(id) == 0 {
+		return "", routing.NewHTTPError(http.StatusBadRequest, "id must not be empty")
+	}
+	return id, nil
+}

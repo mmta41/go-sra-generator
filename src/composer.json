@@ -1,0 +1,17 @@
+{
+    "name": "mmta41/go-crud",
+    "authors": [
+        {
+            "name": "mmta41",
+            "email": "mmta41@gmail.com"
+        }
+    ],
+    "require": {
+      "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "app\\": "app/"
+        }
+    }
+}

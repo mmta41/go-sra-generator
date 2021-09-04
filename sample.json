@@ -1,0 +1,7 @@
+{
+    "__entityName": "MySample",
+    "__CollectionName": "my_sample",
+    "_id" : "*primitive.ObjectID",
+    "name": "string",
+    "description": "string"
+}
